@@ -1300,11 +1300,16 @@ static int dvbsub_parse_display_definition_segment(AVCodecContext *avctx,
     display_def->y       = 0;
     display_def->width   = bytestream_get_be16(&buf) + 1;
     display_def->height  = bytestream_get_be16(&buf) + 1;
+    if (!avctx->width || !avctx->height) {
+        avctx->width  = display_def->width;
+        avctx->height = display_def->height;
+    }
+
+    if (info_byte & 1<<3) { // display_window_flag
 
     if (buf_size < 13)
         return AVERROR_INVALIDDATA;
 
-    if (info_byte & 1<<3) { // display_window_flag
         display_def->x = bytestream_get_be16(&buf);
         display_def->y = bytestream_get_be16(&buf);
         display_def->width  = bytestream_get_be16(&buf) - display_def->x + 1;
@@ -1330,7 +1335,8 @@ static int dvbsub_display_end_segment(AVCodecContext *avctx, const uint8_t *buf,
 
     sub->rects = NULL;
     sub->start_display_time = 0;
-    sub->end_display_time = ctx->time_out * 1000;
+    sub->end_display_time = ( (ctx->time_out<500 || ctx->time_out>5000) ? 5000 : (ctx->time_out * 1000) );
+
     sub->format = 0;
 
     if (display_def) {
@@ -1339,22 +1345,30 @@ static int dvbsub_display_end_segment(AVCodecContext *avctx, const uint8_t *buf,
     }
 
     sub->num_rects = ctx->display_list_size;
+
     if (sub->num_rects <= 0)
         return AVERROR_INVALIDDATA;
 
-    sub->rects = av_mallocz_array(sub->num_rects * sub->num_rects,
-                                  sizeof(*sub->rects));
+//    sub->rects = av_mallocz_array(sub->num_rects,
+//                                  sizeof(*sub->rects));
+
+    sub->rects = av_mallocz(sub->num_rects * sizeof(*sub->rects));
+
     if (!sub->rects)
         return AVERROR(ENOMEM);
+
+	for(i = 0; i < sub->num_rects; i++)
+		sub->rects[i] = av_mallocz(sizeof(*sub->rects[i]));
 
     i = 0;
 
     for (display = ctx->display_list; display; display = display->next) {
         int j;
         region = get_region(ctx, display->region_id);
+
         rect = sub->rects[i];
 
-        if (!region)
+        if (!region || !rect)
             continue;
 
         rect->x = display->x_pos + offset_x;
