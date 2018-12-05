@@ -31,5 +31,6 @@ NEON-OBJS-$(CONFIG_HPELDSP)             += aarch64/hpeldsp_neon.o
 NEON-OBJS-$(CONFIG_IMDCT15)             += aarch64/imdct15_neon.o
 NEON-OBJS-$(CONFIG_MPEGAUDIODSP)        += aarch64/mpegaudiodsp_neon.o
 NEON-OBJS-$(CONFIG_MDCT)                += aarch64/mdct_neon.o
-
+NEON-OBJS-$(CONFIG_VP8DSP)              += aarch64/vp8dsp_init_aarch64.o        \
+                                           aarch64/vp8dsp_neon.o
 NEON-OBJS-$(CONFIG_VORBIS_DECODER)      += aarch64/vorbisdsp_neon.o
