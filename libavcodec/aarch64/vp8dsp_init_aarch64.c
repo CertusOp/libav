@@ -42,7 +42,10 @@ VP8_BILIN(4,  neon);
 
 av_cold void ff_vp78dsp_init_aarch64(VP8DSPContext *dsp)
 {
+    dsp->put_vp8_epel_pixels_tab[0][0][0] = ff_put_vp8_pixels16_neon;
     dsp->put_vp8_epel_pixels_tab[0][2][2] = ff_put_vp8_epel16_h6v6_neon;
+
+    dsp->put_vp8_epel_pixels_tab[1][0][0] = ff_put_vp8_pixels8_neon;
 }
 
 av_cold void ff_vp8dsp_init_aarch64(VP8DSPContext *dsp)
@@ -56,19 +59,18 @@ av_cold void ff_vp8dsp_init_aarch64(VP8DSPContext *dsp)
 #if 0
     dsp->vp8_idct_dc_add4y  = ff_vp8_idct_dc_add4y_neon;
     dsp->vp8_idct_dc_add4uv = ff_vp8_idct_dc_add4uv_neon;
-
-    dsp->vp8_v_loop_filter16y = ff_vp8_v_loop_filter16_neon;
+#endif
     dsp->vp8_h_loop_filter16y = ff_vp8_h_loop_filter16_neon;
+    dsp->vp8_v_loop_filter16y = ff_vp8_v_loop_filter16_neon;
+
     dsp->vp8_v_loop_filter8uv = ff_vp8_v_loop_filter8uv_neon;
     dsp->vp8_h_loop_filter8uv = ff_vp8_h_loop_filter8uv_neon;
 
     dsp->vp8_v_loop_filter16y_inner = ff_vp8_v_loop_filter16_inner_neon;
-    dsp->vp8_h_loop_filter16y_inner = ff_vp8_h_loop_filter16_inner_neon;
+    dsp->vp8_h_loop_filter16y_inner = ff_vp8_h_loop_filter16_inner_neon; // hmm
+
     dsp->vp8_v_loop_filter8uv_inner = ff_vp8_v_loop_filter8uv_inner_neon;
     dsp->vp8_h_loop_filter8uv_inner = ff_vp8_h_loop_filter8uv_inner_neon;
-
     dsp->vp8_v_loop_filter_simple = ff_vp8_v_loop_filter16_simple_neon;
     dsp->vp8_h_loop_filter_simple = ff_vp8_h_loop_filter16_simple_neon;
-#endif
-
 }
