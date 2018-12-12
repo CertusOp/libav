@@ -25,58 +25,6 @@
 #include "libavutil/aarch64/asm.S"
 #include "neon.S"
 
-/*
-function ff_vp8_luma_dc_wht_neon, export=1
-        ld1             {v0.8h-v1.8h},  [x1]
-        movi            v15.8h, #0
-
-        rev64           v1.d2, v1.d2
-        add             v2.8h, v0.8h, v1.8h
-        st1             {v15.16b},    [x1], #32
-        sub             v3.8h, v0.8h, v1.8h
-        st1             {v15.16b},    [x1],
-        
-
-        vmov.i16        q8, #3
-
-        vtrn.32         d0,  d2
-        vtrn.32         d1,  d3
-        vtrn.16         d0,  d1
-        vtrn.16         d2,  d3
-
-        vadd.i16        d0,  d0,  d16
-
-        vadd.i16        d4,  d0,  d3
-        vadd.i16        d6,  d1,  d2
-        vsub.i16        d7,  d1,  d2
-        vsub.i16        d5,  d0,  d3
-        vadd.i16        q0,  q2,  q3
-        vsub.i16        q1,  q2,  q3
-
-        vshr.s16        q0,  q0,  #3
-        vshr.s16        q1,  q1,  #3
-
-        mov             w3,  #32
-        st1         {v0.8h[0]},  [x0], w3
-        st1         {v0.8h[4]},  [x0], w3
-        st1         {v1.8h[0]},  [x0], w3
-        st1         {v1.8h[4]},  [x0], w3
-        st1         {v0.8h[1]},  [x0], w3
-        st1         {v0.8h[5]},  [x0], w3
-        st1         {v1.8h[1]},  [x0], w3
-        st1         {v1.8h[5]},  [x0], w3
-        st1         {v0.8h[2]},  [x0], w3
-        st1         {v0.8h[6]},  [x0], w3
-        st1         {v1.8h[2]},  [x0], w3
-        st1         {v1.8h[6]},  [x0], w3
-        st1         {v0.8h[3]},  [x0], w3
-        st1         {v0.8h[7]},  [x0], w3
-        st1         {v1.8h[3]},  [x0], w3
-        st1         {v1.8h[7]},  [x0],
-
-        ret
-endfunc
-*/
 function ff_vp8_idct_dc_add_neon, export=1
         mov             w3,       #0
         ld1r            {v2.8h},  [x1]
