@@ -112,24 +112,24 @@ endfunc
         ushr            v18.16b, v23.16b, #1          // abs(P1-Q1) / 2
         uqadd           v19.16b, v17.16b,  v18.16b    // (abs(P0-Q0)*2) + (abs(P1-Q1)/2)
         movi            v21.16b, #0x80
-        cmgt            v16.16b, v22.16b,  v19.16b    // (abs(P0-Q0)*2) + (abs(P1-Q1)/2) <= flim_E
+        cmhs            v16.16b, v22.16b, v19.16b    // (abs(P0-Q0)*2) + (abs(P1-Q1)/2) <= flim
     .else
         // calculate hev and normal_limit:
         uabd            v20.16b, v2.16b,  v3.16b      // abs(P1-P0)
         uabd            v21.16b, v5.16b,  v4.16b      // abs(Q1-Q0)
         uabd            v18.16b, v0.16b,  v1.16b      // abs(P3-P2)
         uabd            v19.16b, v1.16b,  v2.16b      // abs(P2-P1)
-        cmgt            v16.16b, v23.16b, v20.16b     // abs(P1-P0) <= flim_I
-        cmgt            v17.16b, v23.16b, v21.16b     // abs(Q1-Q0) <= flim_I
-        cmgt            v18.16b, v23.16b, v18.16b     // abs(P3-P2) <= flim_I
-        cmgt            v19.16b, v23.16b, v19.16b     // abs(P2-P1) <= flim_I
-        and             v16.16b, v16.16b, v17.16b
+        cmhs            v16.16b, v23.16b, v20.16b     // abs(P1-P0) <= flim_I
+        cmhs            v17.16b, v23.16b, v21.16b     // abs(Q1-Q0) <= flim_I
+        cmhs            v18.16b, v23.16b, v18.16b     // abs(P3-P2) <= flim_I
+        cmhs            v19.16b, v23.16b, v19.16b     // abs(P2-P1) <= flim_I
+        and             v16.16b, v17.16b, v16.16b
         uabd            v17.16b, v7.16b,  v6.16b      // abs(Q3-Q2)
         and             v16.16b, v16.16b, v19.16b
         uabd            v19.16b, v6.16b,  v5.16b      // abs(Q2-Q1)
         and             v16.16b, v16.16b, v18.16b
-        cmgt            v18.16b, v23.16b, v17.16b     // abs(Q3-Q2) <= flim_I
-        cmgt            v19.16b, v23.16b, v19.16b     // abs(Q2-Q1) <= flim_I
+        cmhs            v18.16b, v23.16b, v17.16b     // abs(Q3-Q2) <= flim_I
+        cmhs            v19.16b, v23.16b, v19.16b     // abs(Q2-Q1) <= flim_I
         uabd            v17.16b, v3.16b,  v4.16b      // abs(P0-Q0)
         uabd            v23.16b, v2.16b,  v5.16b      // abs(P1-Q1)
         and             v16.16b, v16.16b, v18.16b
@@ -138,9 +138,9 @@ endfunc
         ushr            v18.16b, v23.16b, #1          // abs(P1-Q1) / 2
         dup             v23.16b, \hev_thresh          // hev_thresh
         uqadd           v19.16b, v17.16b, v18.16b     // (abs(P0-Q0)*2) + (abs(P1-Q1)/2)
-        cmgt            v20.16b, v20.16b, v23.16b     // abs(P1-P0) > hev_thresh
-        cmgt            v19.16b, v22.16b, v19.16b     // (abs(P0-Q0)*2) + (abs(P1-Q1)/2) <= flim_E
-        cmgt            v22.16b, v21.16b, v23.16b     // abs(Q1-Q0) > hev_thresh
+        cmhi            v20.16b, v20.16b, v23.16b     // abs(P1-P0) > hev_thresh
+        cmhs            v19.16b, v22.16b, v19.16b     // (abs(P0-Q0)*2) + (abs(P1-Q1)/2) <= flim_E
+        cmhi            v22.16b, v21.16b, v23.16b     // abs(Q1-Q0) > hev_thresh
         and             v16.16b, v16.16b, v19.16b
         movi            v21.16b, #0x80
         orr             v17.16b,  v20.16b, v22.16b
@@ -611,7 +611,7 @@ function ff_put_vp8_epel16_h6v6_neon, export=1
         sub             sp,  sp,  #336+16
         ld1             {v0.8h},  [x16]
         add             x7,  sp,  #15
-        sxtw            x4,  w4	
+        sxtw            x4,  w4 
         add             x16, x4, #5   // h
         bic             x7,  x7,  #15
 1:
