@@ -25,6 +25,79 @@
 #include "libavutil/aarch64/asm.S"
 #include "neon.S"
 
+#if 0	
+function ff_vp8_idct_add_neon, export=1
+        ld1             {v0.8b - v3.8b},  [x1]
+        mov             w3,  #20091
+        movk            w3,  #35468/2, lsl 16
+        dup             v4.2s, w3
+
+        smull           v12.8h, v1.8b,  v4.4h[0]
+        smull           v13.8h, v3.8b,  v4.4h[0]
+        sqdmulh         v20.4h, v1.4h,  v4.4h[1]
+        sqdmulh         v23.4h, v3.4h,  v4.4h[1]
+        sshr            v21.4h, v12.4s, #16
+        sshr            v22.4h, v13.4s, #16
+        vadd.s16        d21, d21, d1
+        vadd.s16        d22, d22, d3
+
+        vadd.s16        d16, d0,  d2
+        vsub.s16        d17, d0,  d2
+        vadd.s16        d18, d21, d23
+        vsub.s16        d19, d20, d22
+        vadd.s16        q0,  q8,  q9
+        vsub.s16        q1,  q8,  q9
+
+        vtrn.32         d0,  d3
+        vtrn.32         d1,  d2
+        vtrn.16         d0,  d1
+        vtrn.16         d3,  d2
+
+        vmov.i16        q15, #0
+        vmull.s16       q12, d1,  d4[0]
+        vst1.16         {q15},    [r1,:128]!
+        vmull.s16       q13, d2,  d4[0]
+        vst1.16         {q15},    [r1,:128]
+        vqdmulh.s16     d21, d1,  d4[1]
+        vqdmulh.s16     d23, d2,  d4[1]
+        vshrn.s32       d20, q12, #16
+        vshrn.s32       d22, q13, #16
+        vadd.i16        d20, d20, d1
+        vadd.i16        d22, d22, d2
+
+        vadd.i16        d16, d0,  d3
+        vsub.i16        d17, d0,  d3
+        vadd.i16        d18, d20, d23
+        vld1.32         {d20[]},  [r0,:32], r2
+        vsub.i16        d19, d21, d22
+        vld1.32         {d22[]},  [r0,:32], r2
+        vadd.s16        q0,  q8,  q9
+        vld1.32         {d23[]},  [r0,:32], r2
+        vsub.s16        q1,  q8,  q9
+        vld1.32         {d21[]},  [r0,:32], r2
+        vrshr.s16       q0,  q0,  #3
+        vtrn.32         q10, q11
+        vrshr.s16       q1,  q1,  #3
+
+        sub             r0,  r0,  r2,  lsl #2
+
+        vtrn.32         d0,  d3
+        vtrn.32         d1,  d2
+        vtrn.16         d0,  d1
+        vtrn.16         d3,  d2
+
+        uaddw           v0.8h,  v0.8h,  v10.8b
+        uaddw2          v1.8h,  v1.8h,  v10.16b
+        sqxtun          v0.8b,  v0.8h
+        sqxtun2         v0.16b, v1.8h
+        st1             {v0.4s}[0],  [x0], x2
+        st1             {v0.4s}[1],  [x0], x2
+        st1             {v0.4s}[3],  [x0], x2
+        st1             {v0.4s}[2],  [x0], x2
+	
+        ret
+endfunc
+#endif
 function ff_vp8_idct_dc_add_neon, export=1
         mov             w3,       #0
         ld1r            {v2.8h},  [x1]
@@ -479,7 +552,30 @@ function ff_put_vp8_pixels8_neon, export=1
         bgt             1b
         ret
 endfunc
-        
+
+/* 4/6-tap 8th-pel MC */
+
+.macro  vp8_epel8_h6    d,   s0,   s1
+        ext             v22.8b, \s0\().8b,  \s1\().8b,  #1
+        uxtl            v18.8h, \s0\().8b
+        ext             v23.8b, \s0\().8b,  \s1\().8b,  #2
+        uxtl            v19.8h, v22.8b
+        ext             v24.8b, \s0\().8b,  \s1\().8b,  #3
+        uxtl            v21.8h, v23.8b
+        ext             v25.8b, \s0\().8b,  \s1\().8b,  #4
+        uxtl            v22.8h, v24.8b
+        ext             v26.8b, \s0\().8b,  \s1\().8b,  #5
+        uxtl            v25.8h, v25.8b
+        mul             v21.8h, v21.8h, v0.8h[2]
+        uxtl            v26.8h, v26.8b
+        mul             v22.8h, v22.8h, v0.8h[3]
+        mls             v21.8h, v19.8h, v0.8h[1]
+        mls             v22.8h, v25.8h, v0.8h[4]
+        mla             v21.8h, v18.8h, v0.8h[0]
+        mla             v22.8h, v26.8h, v0.8h[5]
+        sqadd           v22.8h, v21.8h, v22.8h
+        sqrshrun        \d\().8b, v22.8h, #7
+.endm
         
 .macro  vp8_epel16_h6   d0,  v0,  v1
         ext             v22.16b, \v0\().16b, \v1\().16b, #3
@@ -514,9 +610,7 @@ endfunc
         sqadd           v19.8h,  v18.8h, v19.8h
         sqadd           v22.8h,  v3.8h,  v22.8h
         sqrshrun        \d0\().8b, v19.8h, #7
-        sqrshrun        v22.8b,    v22.8h, #7
-        trn1            \d0\().2d, \d0\().2d, v22.2d
-        
+        sqrshrun2       \d0\().16b, v22.8h, #7
 .endm
 
 .macro  vp8_epel8_v6    d0,  s0,  s1,  s2, s3, s4, s5
@@ -535,6 +629,71 @@ endfunc
         sqadd           \s3\().8h, \s2\().8h, \s3\().8h
         sqrshrun        \d0\().8b, \s3\().8h, #7
 .endm
+
+.macro  vp8_epel8_v6_y2 d0, d1, s0, s1, s2, s3, s4, s5, s6
+        uxtl            \s0\().8h, \s0\().8b
+        uxtl            \s3\().8h, \s3\().8b
+        uxtl            \s6\().8h, \s6\().8b
+        uxtl            \s1\().8h, \s1\().8b
+        uxtl            \s4\().8h, \s4\().8b
+        uxtl            \s2\().8h, \s2\().8b
+        uxtl            \s5\().8h, \s5\().8b
+        mul             \s0\().8h, \s0\().8h, v0.8h[0]
+        mul             v21.8h   , \s3\().8h, v0.8h[3]
+        mul             \s3\().8h, \s3\().8h, v0.8h[2]
+        mul             \s6\().8h, \s6\().8h, v0.8h[5]
+
+        mls             \s0\().8h, \s1\().8h, v0.8h[1]
+        mls             v21.8h   , \s4\().8h, v0.8h[4]
+        mls             \s3\().8h, \s2\().8h, v0.8h[1]
+        mls             \s6\().8h, \s5\().8h, v0.8h[4]
+
+        mla             \s0\().8h, \s2\().8h, v0.8h[2]
+        mla             v21.8h   , \s5\().8h, v0.8h[5]
+        mla             \s3\().8h, \s1\().8h, v0.8h[0]
+        mla             \s6\().8h, \s4\().8h, v0.8h[3]
+        sqadd           v21.8h   , \s0\().8h, v21.8h
+        sqadd           \s6\().8h, \s3\().8h, \s3\().8h
+        sqrshrun        \d0\().8b, v21.8h,    #7
+        sqrshrun        \d1\().8b, \s6\().8h, #7
+.endm
+
+.macro  vp8_epel8_h4    d,   v0,   v1
+        ext             v22.8b, \v0\().8b,  \v1\().8b,  #1
+        uxtl            v19.8h, \v0\().8b
+        ext             v23.8b, \v0\().8b,  \v1\().8b,  #2
+        uxtl            v20.8h, v22.8b
+        ext             v25.8b, \v0\().8b,  \v1\().8b,  #3
+        uxtl            v22.8h, v23.8b
+        uxtl            v25.8h, v25.8b
+        mul             v20.8h, v20.8h, v0.8h[2]
+        mul             v22.8h, v22.8h, v0.8h[3]
+        mls             v20.8h, v19.8h, v0.8h[1]
+        mls             v22.8h, v25.8h, v0.8h[4]
+        sqadd           v22.8h, v20.8h, v22.8h
+        sqrshrun        \d\().8b, v22.8h, #7
+.endm
+	
+.macro  vp8_epel8_v4_y2 d0, d1, s0, s1, s2, s3, s4
+        uxtl            \s0\().8h, \s0\().8b
+        uxtl            \s1\().8h, \s1\().8b
+        uxtl            \s2\().8h, \s2\().8b
+        uxtl            \s3\().8h, \s3\().8b
+        uxtl            \s4\().8h, \s4\().8b
+        mul             v21.8h,    \s1\().8h, v0.8h[2]
+        mul             v23.8h,    \s2\().8h, v0.8h[3]
+        mul             \s2\().8h, \s2\().8h, v0.8h[2]
+        mul             v22.8h,    \s3\().8h, v0.8h[3]
+        mls             v21.8h,    \s0\().8h, v0.8h[1]
+        mls             v23.8h,    \s3\().8h, v0.8h[4]
+        mls             \s2\().8h, \s1\().8h, v0.8h[1]
+        mls             v22.8h,    \s4\().8h, v0.8h[4]
+        sqadd           v21.8h,    v21.8h,    v23.8h
+        sqadd           \s2\().8h, \s2\().8h, v22.8h
+        sqrshrun        \d0\().8b, v21.8h,    #7
+        sqrshrun        \d1\().8b, \s2\().8h, #7
+.endm
+
 
 // note: worst case sum of all 6-tap filter values * 255 is 0x7f80 so 16 bit
 // arithmatic can be used to apply filters
@@ -578,8 +737,8 @@ function ff_put_vp8_epel16_h6v6_neon, export=1
         bic             x7,  x7,  #15
 2:
         ld1             {v1.8b - v4.8b},    [x7], #32
-        ld1             {v16.8b - v19.8b},[x7], #32
-        ld1             {v20.8b - v23.8b},[x7]
+        ld1             {v16.8b - v19.8b},  [x7], #32
+        ld1             {v20.8b - v23.8b},  [x7]
         sub             x7,  x7,  #48
 
         vp8_epel8_v6    v5, v1, v3, v16, v18, v20, v22
@@ -593,4 +752,145 @@ function ff_put_vp8_epel16_h6v6_neon, export=1
         add             sp,  sp,  #336+16
         ret
 endfunc
-        
+
+function ff_put_vp8_epel8_h6v6_neon, export=1
+        sub             x2,  x2,  x3,  lsl #1
+        sub             x2,  x2,  #2
+
+
+        // first pass (horizontal):
+        movrel          x17,  subpel_filters-16
+        sxtw            x5,  w5
+        add             x16,  x17,  x5, lsl #4 // x
+        sub             sp,  sp,  #168+16
+        ld1             {v0.8h},  [x16]
+        add             x7,  sp,  #15
+        sxtw            x4,  w4 
+        add             x16, x4, #5   // h
+        bic             x7,  x7,  #15
+1:
+        ld1             {v1.8b, v2.8b}, [x2], x3
+
+        vp8_epel8_h6    v1, v1, v2
+
+        st1             {v1.8b}, [x7], #8
+        subs            x16, x16, #1
+        bne             1b
+
+        // second pass (vertical):
+        sxtw            x6,  w6 
+        add             x6,  x17,  x6, lsl #4  // y
+        add             x7,  sp,   #15
+        ld1             {v0.8h},   [x6]
+        bic             x7,  x7,   #15
+2:
+        ld1             {v1.8b - v4.8b}, [x7], #32
+        ld1             {v5.8b - v7.8b}, [x7]
+
+        sub             x7,  x7,  #16
+
+        vp8_epel8_v6_y2 v1, v2, v1, v2, v3, v4, v5, v6, v7
+
+        st1             {v1.8b}, [x0], x1
+        st1             {v2.8b}, [x0], x1
+        subs            x4, x4, #2
+        bne             2b
+
+        add             sp,  sp,  #168+16
+        ret
+endfunc
+
+function ff_put_vp8_epel8_h4v6_neon, export=1
+        sub             x2,  x2,  x3,  lsl #1
+        sub             x2,  x2,  #1
+
+
+        // first pass (horizontal):
+        movrel          x17,  subpel_filters-16
+        sxtw            x5,  w5
+        add             x16,  x17,  x5, lsl #4 // x
+        sub             sp,  sp,  #168+16
+        ld1             {v0.8h},  [x16]
+        add             x7,  sp,  #15
+        sxtw            x4,  w4 
+        add             x16, x4, #5   // h
+        bic             x7,  x7,  #15
+1:
+        ld1             {v1.8b, v2.8b}, [x2], x3
+
+        vp8_epel8_h4    v1, v1, v2
+
+        st1             {v1.8b}, [x7], #8
+        subs            x16, x16, #1
+        bne             1b
+
+        // second pass (vertical):
+        sxtw            x6,  w6 
+        add             x6,  x17,  x6, lsl #4  // y
+        add             x7,  sp,   #15
+        ld1             {v0.8h},   [x6]
+        bic             x7,  x7,   #15
+2:
+        ld1             {v1.8b - v4.8b}, [x7], #32
+        ld1             {v5.8b - v7.8b}, [x7]
+
+        sub             x7,  x7,  #16
+
+        vp8_epel8_v6_y2 v1, v2, v1, v2, v3, v4, v5, v6, v7
+
+        st1             {v1.8b}, [x0], x1
+        st1             {v2.8b}, [x0], x1
+        subs            x4, x4, #2
+        bne             2b
+
+        add             sp,  sp,  #168+16
+        ret
+endfunc
+
+function ff_put_vp8_epel8_h6v4_neon, export=1
+        sub             x2,  x2,  x3,  lsl #1
+        sub             x2,  x2,  #2
+
+
+        // first pass (horizontal):
+        movrel          x17,  subpel_filters-16
+        sxtw            x5,  w5
+        add             x16,  x17,  x5, lsl #4 // x
+        sub             sp,  sp,  #168+16
+        ld1             {v0.8h},  [x16]
+        add             x7,  sp,  #15
+        sxtw            x4,  w4 
+        add             x16, x4, #3   // h
+        bic             x7,  x7,  #15
+1:
+        ld1             {v1.8b, v2.8b}, [x2], x3
+
+        vp8_epel8_h6    v1, v1, v2
+
+        st1             {v1.8b}, [x7], #8
+        subs            x16, x16, #1
+        bne             1b
+
+        // second pass (vertical):
+        sxtw            x6,  w6 
+        add             x6,  x17,  x6, lsl #4  // y
+        add             x7,  sp,   #15
+        ld1             {v0.8h},   [x6]
+        bic             x7,  x7,   #15
+2:
+        ld1             {v1.8b - v4.8b},  [x7], #32
+        ld1             {v5.8b},[x7]
+
+        sub             x7,  x7,  #16
+
+        vp8_epel8_v4_y2 v1, v2, v1, v2, v3, v4, v5
+
+        st1             {v1.8b}, [x0], x1
+        st1             {v2.8b}, [x0], x1
+        subs            x4, x4, #2
+        bne             2b
+
+        add             sp,  sp,  #168+16
+        ret
+endfunc
+	
