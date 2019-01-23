@@ -630,7 +630,7 @@ endfunc
         sqrshrun        \d0\().8b, \s3\().8h, #7
 .endm
 
-.macro  vp8_epel8_v6_y2 d0, d1, s0, s1, s2, s3, s4, s5, s6
+.macro  vp8_epel8_v6_y2 d0, s0, s1, s2, s3, s4, s5, s6
         uxtl            \s0\().8h, \s0\().8b
         uxtl            \s3\().8h, \s3\().8b
         uxtl            \s6\().8h, \s6\().8b
@@ -653,9 +653,9 @@ endfunc
         mla             \s3\().8h, \s1\().8h, v0.8h[0]
         mla             \s6\().8h, \s4\().8h, v0.8h[3]
         sqadd           v21.8h   , \s0\().8h, v21.8h
-        sqadd           \s6\().8h, \s3\().8h, \s3\().8h
+        sqadd           \s6\().8h, \s3\().8h, \s6\().8h
         sqrshrun        \d0\().8b, v21.8h,    #7
-        sqrshrun        \d1\().8b, \s6\().8h, #7
+        sqrshrun2       \d0\().16b, \s6\().8h, #7
 .endm
 
 .macro  vp8_epel8_h4    d,   v0,   v1
@@ -674,7 +674,7 @@ endfunc
         sqrshrun        \d\().8b, v22.8h, #7
 .endm
 	
-.macro  vp8_epel8_v4_y2 d0, d1, s0, s1, s2, s3, s4
+.macro  vp8_epel8_v4_y2 d0, s0, s1, s2, s3, s4
         uxtl            \s0\().8h, \s0\().8b
         uxtl            \s1\().8h, \s1\().8b
         uxtl            \s2\().8h, \s2\().8b
@@ -691,7 +691,7 @@ endfunc
         sqadd           v21.8h,    v21.8h,    v23.8h
         sqadd           \s2\().8h, \s2\().8h, v22.8h
         sqrshrun        \d0\().8b, v21.8h,    #7
-        sqrshrun        \d1\().8b, \s2\().8h, #7
+        sqrshrun2       \d0\().16b, \s2\().8h, #7
 .endm
 
 
@@ -713,7 +713,7 @@ function ff_put_vp8_epel16_h6v6_neon, export=1
 
         // first pass (horizontal):
         movrel          x17,  subpel_filters-16
-        sxtw            x5,  w5
+        sxtw            x5,  w5 // x
         add             x16,  x17,  x5, lsl #4 // x
         sub             sp,  sp,  #336+16
         ld1             {v0.8h},  [x16]
@@ -757,13 +757,12 @@ function ff_put_vp8_epel8_h6v6_neon, export=1
         sub             x2,  x2,  x3,  lsl #1
         sub             x2,  x2,  #2
 
-
         // first pass (horizontal):
         movrel          x17,  subpel_filters-16
         sxtw            x5,  w5
-        add             x16,  x17,  x5, lsl #4 // x
+        add             x5,  x17,  x5, lsl #4 // x
         sub             sp,  sp,  #168+16
-        ld1             {v0.8h},  [x16]
+        ld1             {v0.8h},  [x5]
         add             x7,  sp,  #15
         sxtw            x4,  w4 
         add             x16, x4, #5   // h
@@ -789,10 +788,10 @@ function ff_put_vp8_epel8_h6v6_neon, export=1
 
         sub             x7,  x7,  #16
 
-        vp8_epel8_v6_y2 v1, v2, v1, v2, v3, v4, v5, v6, v7
+        vp8_epel8_v6_y2 v1, v1, v2, v3, v4, v5, v6, v7
 
-        st1             {v1.8b}, [x0], x1
-        st1             {v2.8b}, [x0], x1
+        st1             {v1.d}[0], [x0], x1
+        st1             {v1.d}[1], [x0], x1
         subs            x4, x4, #2
         bne             2b
 
@@ -808,9 +807,9 @@ function ff_put_vp8_epel8_h4v6_neon, export=1
         // first pass (horizontal):
         movrel          x17,  subpel_filters-16
         sxtw            x5,  w5
-        add             x16,  x17,  x5, lsl #4 // x
+        add             x5,  x17,  x5, lsl #4 // x
         sub             sp,  sp,  #168+16
-        ld1             {v0.8h},  [x16]
+        ld1             {v0.8h},  [x5]
         add             x7,  sp,  #15
         sxtw            x4,  w4 
         add             x16, x4, #5   // h
@@ -836,10 +835,10 @@ function ff_put_vp8_epel8_h4v6_neon, export=1
 
         sub             x7,  x7,  #16
 
-        vp8_epel8_v6_y2 v1, v2, v1, v2, v3, v4, v5, v6, v7
+        vp8_epel8_v6_y2 v1, v1, v2, v3, v4, v5, v6, v7
 
-        st1             {v1.8b}, [x0], x1
-        st1             {v2.8b}, [x0], x1
+        st1             {v1.d}[0], [x0], x1
+        st1             {v1.d}[1], [x0], x1
         subs            x4, x4, #2
         bne             2b
 
@@ -848,16 +847,16 @@ function ff_put_vp8_epel8_h4v6_neon, export=1
 endfunc
 
 function ff_put_vp8_epel8_h6v4_neon, export=1
-        sub             x2,  x2,  x3,  lsl #1
+        sub             x2,  x2,  x3
         sub             x2,  x2,  #2
 
 
         // first pass (horizontal):
         movrel          x17,  subpel_filters-16
         sxtw            x5,  w5
-        add             x16,  x17,  x5, lsl #4 // x
+        add             x5,  x17,  x5, lsl #4 // x
         sub             sp,  sp,  #168+16
-        ld1             {v0.8h},  [x16]
+        ld1             {v0.8h},  [x5]
         add             x7,  sp,  #15
         sxtw            x4,  w4 
         add             x16, x4, #3   // h
@@ -878,15 +877,13 @@ function ff_put_vp8_epel8_h6v4_neon, export=1
         ld1             {v0.8h},   [x6]
         bic             x7,  x7,   #15
 2:
-        ld1             {v1.8b - v4.8b},  [x7], #32
-        ld1             {v5.8b},[x7]
+        ld1             {v1.8b - v2.8b}, [x7], #16
+        ld1             {v3.8b - v5.8b}, [x7]
 
-        sub             x7,  x7,  #16
+        vp8_epel8_v4_y2 v1, v1, v2, v3, v4, v5
 
-        vp8_epel8_v4_y2 v1, v2, v1, v2, v3, v4, v5
-
-        st1             {v1.8b}, [x0], x1
-        st1             {v2.8b}, [x0], x1
+        st1             {v1.d}[0], [x0], x1
+        st1             {v1.d}[1], [x0], x1
         subs            x4, x4, #2
         bne             2b
 
