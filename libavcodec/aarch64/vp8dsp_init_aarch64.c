@@ -44,70 +44,10 @@ VP8_BILIN(16, neon);
 VP8_BILIN(8,  neon);
 VP8_BILIN(4,  neon);
 
-#if 0
-
-static vp8_mc_func real_put_vp8_epel;
-
-static void (*filter_c)(uint8_t *dst, ptrdiff_t stride,
-			   int flim_E, int flim_I, int hev_thresh);
-
-
-
-static void filter_wrapper(uint8_t *dst, ptrdiff_t stride,
-			   int flim_E, int flim_I, int hev_thresh)
-{
-    static int count;
-    const int len = 4 * 2 * stride  +  16;
-
-    
-    uint8_t *tmp = malloc(len);
-    uint8_t *pre = malloc(len);
-    memcpy(tmp, dst - (4 * stride), len);
-    memcpy(pre, dst - (4 * stride), len);
-    filter_c(dst, stride, flim_E, flim_I, hev_thresh);
-    ff_vp8_v_loop_filter16_inner_neon(tmp + 4 * stride, stride, flim_E, flim_I, hev_thresh);
-    
-    count++;
-    dst -= (4 * stride);
-    if (memcmp(tmp, dst, len)) {
-      int i, j;
-      fprintf(stderr, "count %d - %d %d %d\n", count, flim_E, flim_I, hev_thresh);
-      fprintf(stderr, "init :\n");
-      for (j = 0; j < len; j += stride) {
-	for (i = 0; i < 16; i++) {
-	  fprintf(stderr, "0x%02x, ", pre[i]);
-	}
-	fprintf(stderr, "\n");
-	pre += stride;
-      }
-      fprintf(stderr, "correct :\n");
-      for (j = 0; j < len; j += stride) {
-	for (i = 0; i < 16; i++) {
-	  fprintf(stderr, "0x%02x, ", dst[i]);
-	}
-	fprintf(stderr, "\n");
-	dst += stride;
-      }
-      fprintf(stderr, "faulty :\n");
-      for (j = 0; j < len; j += stride) {
-	for (i = 0; i < 16; i++) {
-	  fprintf(stderr, "0x%02x,", tmp[i]);
-	}
-	fprintf(stderr, "\n");
-	tmp += stride;
-      }
-      exit(1);
-    }
-    free(tmp);
-}
-
-#endif
 av_cold void ff_vp78dsp_init_aarch64(VP8DSPContext *dsp)
 {
     dsp->put_vp8_epel_pixels_tab[0][0][0] = ff_put_vp8_pixels16_neon;
     dsp->put_vp8_epel_pixels_tab[0][2][2] = ff_put_vp8_epel16_h6v6_neon;
-
-    dsp->put_vp8_epel_pixels_tab[1][2][2] = ff_put_vp8_epel8_h6v6_neon;
 
     dsp->put_vp8_epel_pixels_tab[1][0][0] = ff_put_vp8_pixels8_neon;
     dsp->put_vp8_epel_pixels_tab[1][2][2] = ff_put_vp8_epel8_h6v6_neon;
@@ -117,16 +57,10 @@ av_cold void ff_vp78dsp_init_aarch64(VP8DSPContext *dsp)
 
 av_cold void ff_vp8dsp_init_aarch64(VP8DSPContext *dsp)
 {
-#if 0
-    dsp->vp8_luma_dc_wht    = ff_vp8_luma_dc_wht_neon;
 
     dsp->vp8_idct_add       = ff_vp8_idct_add_neon;
-#endif
     dsp->vp8_idct_dc_add    = ff_vp8_idct_dc_add_neon;
-#if 0
-    dsp->vp8_idct_dc_add4y  = ff_vp8_idct_dc_add4y_neon;
-    dsp->vp8_idct_dc_add4uv = ff_vp8_idct_dc_add4uv_neon;
-#endif
+
     dsp->vp8_h_loop_filter16y = ff_vp8_h_loop_filter16_neon;
     dsp->vp8_v_loop_filter16y = ff_vp8_v_loop_filter16_neon;
     dsp->vp8_v_loop_filter8uv = ff_vp8_v_loop_filter8uv_neon;

@@ -25,79 +25,86 @@
 #include "libavutil/aarch64/asm.S"
 #include "neon.S"
 
-#if 0	
 function ff_vp8_idct_add_neon, export=1
         ld1             {v0.8b - v3.8b},  [x1]
-        mov             w3,  #20091
-        movk            w3,  #35468/2, lsl 16
-        dup             v4.2s, w3
+        mov             w4,  #20091
+        movk            w4,  #35468/2, lsl 16
+        dup             v4.2s, w4
 
-        smull           v12.8h, v1.8b,  v4.4h[0]
-        smull           v13.8h, v3.8b,  v4.4h[0]
+        smull           v12.4s, v1.4h,  v4.4h[0]
+        smull           v13.4s, v3.4h,  v4.4h[0]
         sqdmulh         v20.4h, v1.4h,  v4.4h[1]
         sqdmulh         v23.4h, v3.4h,  v4.4h[1]
-        sshr            v21.4h, v12.4s, #16
-        sshr            v22.4h, v13.4s, #16
-        vadd.s16        d21, d21, d1
-        vadd.s16        d22, d22, d3
+        sqshrn          v21.4h, v12.4s, #16
+        sqshrn          v22.4h, v13.4s, #16
+        add             v21.4h, v21.4h, v1.4h
+        add             v22.4h, v22.4h, v3.4h
 
-        vadd.s16        d16, d0,  d2
-        vsub.s16        d17, d0,  d2
-        vadd.s16        d18, d21, d23
-        vsub.s16        d19, d20, d22
-        vadd.s16        q0,  q8,  q9
-        vsub.s16        q1,  q8,  q9
+        add             v16.4h,  v0.4h,   v2.4h
+        sub             v17.4h,  v0.4h,   v2.4h
 
-        vtrn.32         d0,  d3
-        vtrn.32         d1,  d2
-        vtrn.16         d0,  d1
-        vtrn.16         d3,  d2
+        add             v18.4h,  v21.4h,  v23.4h
+        sub	        v19.4h,  v20.4h,  v22.4h
 
-        vmov.i16        q15, #0
-        vmull.s16       q12, d1,  d4[0]
-        vst1.16         {q15},    [r1,:128]!
-        vmull.s16       q13, d2,  d4[0]
-        vst1.16         {q15},    [r1,:128]
-        vqdmulh.s16     d21, d1,  d4[1]
-        vqdmulh.s16     d23, d2,  d4[1]
-        vshrn.s32       d20, q12, #16
-        vshrn.s32       d22, q13, #16
-        vadd.i16        d20, d20, d1
-        vadd.i16        d22, d22, d2
+        add        	v0.4h,   v16.4h,  v18.4h
+        add        	v1.4h,   v17.4h,  v19.4h
+        sub        	v3.4h,   v16.4h,  v18.4h
+        sub        	v2.4h,   v17.4h,  v19.4h
 
-        vadd.i16        d16, d0,  d3
-        vsub.i16        d17, d0,  d3
-        vadd.i16        d18, d20, d23
-        vld1.32         {d20[]},  [r0,:32], r2
-        vsub.i16        d19, d21, d22
-        vld1.32         {d22[]},  [r0,:32], r2
-        vadd.s16        q0,  q8,  q9
-        vld1.32         {d23[]},  [r0,:32], r2
-        vsub.s16        q1,  q8,  q9
-        vld1.32         {d21[]},  [r0,:32], r2
-        vrshr.s16       q0,  q0,  #3
-        vtrn.32         q10, q11
-        vrshr.s16       q1,  q1,  #3
+        transpose_4x4H  v0, v1, v2, v3, v24, v5, v6, v7
 
-        sub             r0,  r0,  r2,  lsl #2
+        movi            v15.8h, #0
+        smull           v12.4s,    v1.4h,  v4.4h[0]
+        st1             {v15.8h},  [x1],   #16
+        smull           v13.4s,    v2.4h,  v4.4h[0]
+        st1             {v15.16b}, [x1]
+        sqdmulh         v21.4h,    v1.4h,  v4.4h[1]
+        sqdmulh         v23.4h,    v2.4h,  v4.4h[1]
+        sqshrn          v20.4h,    v12.4s, #16
+        sqshrn          v22.4h,    v13.4s, #16
+        add             v20.4h,    v20.4h, v1.4h
+        add             v22.4h,    v22.4h, v2.4h
 
-        vtrn.32         d0,  d3
-        vtrn.32         d1,  d2
-        vtrn.16         d0,  d1
-        vtrn.16         d3,  d2
+        add             v16.4h,    v0.4h,  v3.4h
+        sub             v17.4h,    v0.4h,  v3.4h
+	
+        add	        v18.4h,     v20.4h, v23.4h
+        ld1             {v10.d}[0], [x0],   x2
+	zip1		v16.2d,     v16.2d, v17.2d
+        sub             v19.4h,     v21.4h, v22.4h
+        ld1             {v11.d}[0], [x0],   x2
+	zip1		v18.2d,     v18.2d, v19.2d
+        add             v0.8h,      v16.8h, v18.8h
+        ld1	        {v11.d}[1], [x0],   x2
+        sub             v1.8h,      v16.8h, v18.8h
+        ld1             {v10.d}[1], [x0],   x2
+        srshr           v0.8h,      v0.8h,  #3
+	trn1		v10.4s, v10.4s, v11.4s
+        srshr           v1.8h,      v1.8h,  #3
 
-        uaddw           v0.8h,  v0.8h,  v10.8b
-        uaddw2          v1.8h,  v1.8h,  v10.16b
+        sub             x0,  x0,  x2,  lsl #2
+
+	ext		v1.16b, v1.16b, v1.16b, #8
+        trn1            v2.2d,  v0.2d,  v1.2d
+        trn2            v0.2d,  v0.2d,  v1.2d
+        trn1            v1.8h,  v2.8h,  v0.8h
+        trn2           	v2.8h,  v2.8h,  v0.8h
+        uzp1            v0.4s,  v1.4s,  v2.4s
+        uzp2            v1.4s,  v2.4s,  v1.4s
+
+        uaddw           v0.8h,  v0.8h, v10.8b
+        uaddw2          v1.8h,  v1.8h, v10.16b
         sqxtun          v0.8b,  v0.8h
         sqxtun2         v0.16b, v1.8h
-        st1             {v0.4s}[0],  [x0], x2
-        st1             {v0.4s}[1],  [x0], x2
-        st1             {v0.4s}[3],  [x0], x2
-        st1             {v0.4s}[2],  [x0], x2
+        st1             {v0.s}[0],  [x0], x2
+        st1             {v0.s}[1],  [x0], x2
+        st1             {v0.s}[3],  [x0], x2
+        st1             {v0.s}[2],  [x0], x2
 	
         ret
 endfunc
-#endif
+
+
 function ff_vp8_idct_dc_add_neon, export=1
         mov             w3,       #0
         ld1r            {v2.8h},  [x1]
